@@ -1,0 +1,4 @@
+.env
+tracked_pairs.json
+tidaldex_tokens.json
+__pycache__/

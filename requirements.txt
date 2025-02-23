@@ -1,0 +1,11 @@
+python-dotenv==1.0.1
+web3==7.8.0
+python-telegram-bot[job-queue]==21.10
+requests==2.31.0
+urllib3==2.0.7
+chardet==4.0.0
+openai==1.63.2
+pillow==11.1.0
+opencv-python==4.11.0.86 
+glitchart==1.0.0
+imageio==2.37.0
