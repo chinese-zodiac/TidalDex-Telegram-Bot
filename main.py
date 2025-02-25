@@ -839,6 +839,19 @@ async def regenerate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error regenerating image: {str(e)}")
 
+async def redownload_tokens(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Force redownload of the token list"""
+    if not await is_admin(update):
+        await update.message.reply_text("You don't have permission to use this command.")
+        return
+    
+    try:
+        await update.message.reply_text("Downloading token list...")
+        download_token_list()
+        await update.message.reply_text("Token list has been successfully updated!")
+    except Exception as e:
+        await update.message.reply_text(f"Error updating token list: {str(e)}")
+
 def main():
     """Set up the bot and start monitoring pairs"""
     # Build application
@@ -864,6 +877,7 @@ def main():
     application.add_handler(CommandHandler("removepair", remove_pair))
     application.add_handler(CommandHandler("listpairs", list_pairs))
     application.add_handler(CommandHandler("regenimg", regenerate_image))
+    application.add_handler(CommandHandler("reloadtokens", redownload_tokens))
     application.add_handler(image_conv_handler)
     
     # Add the monitoring job
