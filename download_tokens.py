@@ -9,7 +9,7 @@ load_dotenv()
 
 # Get token list URL from .env
 TOKEN_LIST_URL = os.getenv('DEFAULT_TOKEN_LIST')
-TOKEN_LIST_FILE = "tidaldex_tokens.json"
+TOKEN_LIST_FILE = os.getenv("TOKENS_FILE", "tidaldex_tokens.json")
 
 def download_token_list():
     """Download and save TidalDex token list if version has changed"""

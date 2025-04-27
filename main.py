@@ -21,13 +21,15 @@ load_dotenv()
 BSC_RPC_URL = os.getenv("BSC_RPC_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TOKENS_FILE = os.getenv("TOKENS_FILE", "tidaldex_tokens.json")
+PAIRS_FILE = os.getenv("PAIRS_FILE", "tracked_pairs.json")
+
 # Initialize OpenAI client
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
 )
 
 # Constants
-PAIRS_FILE = "tracked_pairs.json"
 WAITING_FOR_IMAGE = 1  # State for conversation handler
 
 # Load ABI from file
@@ -77,7 +79,7 @@ def initialize_filters():
 def load_token_list():
     """Load the token list from file"""
     try:
-        with open('tidaldex_tokens.json', 'r') as f:
+        with open(TOKENS_FILE, 'r') as f:
             data = json.load(f)
             return data.get('tokens', {})
     except FileNotFoundError:

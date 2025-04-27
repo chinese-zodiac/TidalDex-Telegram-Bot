@@ -1,6 +1,36 @@
 # TidalDex Telegram Bot
 
-A Telegram bot that monitors trading pairs on TidalDex and sends real-time alerts for buy transactions with custom-generated DALL-E images.
+A Telegram bot that monitors trading pairs on TidalDex and sends alerts for significant trades.
+
+## Features
+
+- Monitor multiple trading pairs across different Telegram chats
+- Custom images for each trading pair
+- Configurable minimum trade amounts
+- Real-time trade alerts
+- Admin-only commands for managing pairs
+
+## Configuration
+
+Create a `.env` file with the following variables:
+
+```env
+# Required
+BSC_RPC_URL=your_bsc_rpc_url
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+OPENAI_API_KEY=your_openai_api_key
+
+# Optional - File paths (defaults shown)
+TOKENS_FILE=tidaldex_tokens.json
+PAIRS_FILE=tracked_pairs.json
+```
+
+## Files
+
+- `tidaldex_tokens.json`: Token list with symbols, decimals, and logos (auto-updated)
+- `tracked_pairs.json`: Stores tracked pairs and their configurations
+- `pairABI.json`: ABI for the pair contract
+- `baseassetlist.json`: List of base assets with minimum quantities
 
 ## Features
 
