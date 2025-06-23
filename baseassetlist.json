@@ -2,15 +2,15 @@
   "baseassets": [
     {
       "symbol": "CZB",
-      "min_quantity": 900
+      "min_quantity": 135000
     },
     {
       "symbol": "CZUSD",
-      "min_quantity": 0.9
+      "min_quantity": 19.9
     },
     {
       "symbol": "USDT",
-      "min_quantity": 0.9
+      "min_quantity": 19.9
     },
     {
       "symbol": "WBNB",
