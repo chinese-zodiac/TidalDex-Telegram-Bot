@@ -3,6 +3,7 @@ import json
 import asyncio
 from dotenv import load_dotenv
 from web3 import Web3
+from web3.exceptions import Web3RPCError
 from telegram import Bot, Update, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 from download_tokens import download_token_list
@@ -39,7 +40,7 @@ with open('pairABI.json', 'r') as f:
 # Connect to BSC
 w3 = Web3(Web3.HTTPProvider(BSC_RPC_URL))
 
-# Global variable to store filters
+# Global variable to store per-pair state: contract, filter, last processed block
 pair_filters = {}
 
 def load_pairs():
@@ -74,7 +75,17 @@ def initialize_filters():
     
     for pair_address in unique_pairs:
         contract = w3.eth.contract(address=pair_address, abi=PAIR_ABI)
-        pair_filters[pair_address] = contract.events.Swap.create_filter(from_block='latest')
+        current_block = w3.eth.block_number
+        try:
+            event_filter = contract.events.Swap.create_filter(from_block='latest')
+        except Exception as e:
+            print(f"Failed to create filter for {pair_address}: {e}")
+            event_filter = None
+        pair_filters[pair_address] = {
+            'contract': contract,
+            'filter': event_filter,
+            'last_block': current_block,
+        }
 
 def load_token_list():
     """Load the token list from file"""
@@ -253,7 +264,10 @@ async def monitor_pairs(context: ContextTypes.DEFAULT_TYPE):
     base_assets = load_base_assets()
     
     # Check for new events using existing filters
-    for pair_address, event_filter in pair_filters.items():
+    for pair_address, state in pair_filters.items():
+        contract = state.get('contract')
+        event_filter = state.get('filter')
+        last_block = state.get('last_block', w3.eth.block_number)
         # Find which chats are tracking this pair
         tracking_chats = [
             chat_id for chat_id, chat_pairs in pairs.items()
@@ -263,7 +277,49 @@ async def monitor_pairs(context: ContextTypes.DEFAULT_TYPE):
         if not tracking_chats:
             continue  # Skip if no chats are tracking this pair
             
-        for event in event_filter.get_new_entries():
+        # Fetch new events
+        new_events = []
+        if event_filter is not None:
+            try:
+                new_events = event_filter.get_new_entries()
+            except Web3RPCError as e:
+                if '-32000' in str(e) or 'filter not found' in str(e):
+                    # Filter was dropped by the node; backfill via get_logs and recreate filter
+                    try:
+                        new_events = contract.events.Swap.get_logs(fromBlock=last_block + 1, toBlock='latest')
+                    except Exception as e_logs:
+                        print(f"Error backfilling logs for {pair_address}: {e_logs}")
+                        new_events = []
+                    try:
+                        state['filter'] = contract.events.Swap.create_filter(from_block='latest')
+                    except Exception as e_recreate:
+                        print(f"Error recreating filter for {pair_address}: {e_recreate}")
+                        state['filter'] = None
+                else:
+                    # Unknown Web3 error; log and continue
+                    print(f"Web3 error for {pair_address}: {e}")
+                    new_events = []
+            except Exception as e:
+                print(f"Unexpected error getting new entries for {pair_address}: {e}")
+                new_events = []
+        else:
+            # No active filter; poll via get_logs
+            try:
+                new_events = contract.events.Swap.get_logs(fromBlock=last_block + 1, toBlock='latest')
+            except Exception as e_logs:
+                print(f"Error polling logs for {pair_address}: {e_logs}")
+                new_events = []
+
+        # Update last processed block
+        if new_events:
+            try:
+                max_block = max(evt.get('blockNumber') for evt in new_events if 'blockNumber' in evt)
+                if max_block is not None:
+                    state['last_block'] = max(max_block, last_block)
+            except Exception as e_blk:
+                print(f"Error updating last_block for {pair_address}: {e_blk}")
+
+        for event in new_events:
             # Find the pair data from any chat (they should all be the same)
             pair_data = next(
                 (chat_pairs[pair_address] for chat_pairs in pairs.values() if pair_address in chat_pairs),
@@ -628,9 +684,19 @@ async def add_pair(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         save_pairs(pairs)
         
-        # Initialize filter for new pair if not already exists
+        # Initialize state for new pair if not already exists
         if address not in pair_filters:
-            pair_filters[address] = contract.events.Swap.create_filter(from_block='latest')
+            current_block = w3.eth.block_number
+            try:
+                event_filter = contract.events.Swap.create_filter(from_block='latest')
+            except Exception as e:
+                print(f"Failed to create filter for {address}: {e}")
+                event_filter = None
+            pair_filters[address] = {
+                'contract': contract,
+                'filter': event_filter,
+                'last_block': current_block,
+            }
         
         # Notify that pair was added
         await update.message.reply_text(f"Added pair {pair_name}! Generating a unique image in the background...")
